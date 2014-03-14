@@ -22,7 +22,7 @@ class resTable:
         with open(self.filename, 'rb') as f:
             reader = csv.reader(f)
             for row in reader:
-                res = Residue(row[0],row[1],row[2],row[3],row[4])
+                res = Residue(row[0],row[1],row[2],float(row[3]),int(row[4]))
                 self.resTab = np.append(self.resTab,res)
     
     def lookForRes(self,resCode,codeType=1):    
@@ -41,11 +41,19 @@ class resTable:
         return self.lookForRes(resCode,codeType).hydropathy        
     
     def lookUpCharge(self,resCode,codeType=1):
-        res = self.lookForRes(resCode,codeType)
-        if(res == None):
-            print('Illegal residue code or codeType\nLegal code types are 1 and 3\nResidue codes must be the corresponding 1 letter or 3 letter code for a given residue\n')
-            return None
-        return self.lookForRes(resCode,codeType).charge
+        #first check for reduced residue types (aka charge +/-/0)
+        if(resCode == '+'):
+            return 1
+        elif(resCode == '-'):
+            return -1
+        elif(resCode == '0'):
+            return 0
+        else:    
+            res = self.lookForRes(resCode,codeType)
+            if(res == None):
+                print('Illegal residue code or codeType\nLegal code types are 1 and 3\nResidue codes must be the corresponding 1 letter or 3 letter code for a given residue\n')
+                return None
+            return self.lookForRes(resCode,codeType).charge
 
 
     
