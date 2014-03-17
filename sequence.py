@@ -9,36 +9,34 @@ import numpy as np
 import random as rm
 from residues import resTable
 
-class Sequence:
-    
+lkupTab = resTable('residueData.csv')
 
-    
-    def __init__(self,seq,lkupTab):
+class Sequence:
+    def __init__(self,seq):
         self.seq = seq.upper()
         self.len = len(seq)
-        self.lkupTab = lkupTab
         self.dmax = -1 #initializing to prevent extra computational time
-        self.N_ITERS = 10
-        self.N_STEPS = 100000
+        self.N_ITERS = 5
+        self.N_STEPS = 5000
         
     def countPos(self):
         ans = 0
         for i in np.arange(0,self.len):
-            if(self.lkupTab.lookUpCharge(self.seq[i])>0):
+            if(lkupTab.lookUpCharge(self.seq[i])>0):
                 ans += 1
         return ans
         
     def countNeg(self):
         ans = 0
         for i in np.arange(0,self.len):
-            if(self.lkupTab.lookUpCharge(self.seq[i])<0):
+            if(lkupTab.lookUpCharge(self.seq[i])<0):
                 ans += 1
         return ans   
         
     def countNeut(self):
         ans = 0
         for i in np.arange(0,self.len):
-            if(self.lkupTab.lookUpCharge(self.seq[i])==0):
+            if(lkupTab.lookUpCharge(self.seq[i])==0):
                 ans += 1
         return ans   
 
@@ -57,13 +55,13 @@ class Sequence:
     def meanHydropathy(self):
         ans = 0
         for i in np.arange(0,self.len):
-            ans += self.lkupTab.lookUpHydropathy(self.seq[i])/self.len
+            ans += lkupTab.lookUpHydropathy(self.seq[i])/self.len
         return ans
         
     def cumMeanHydropathy(self):
-        ans = [self.lkupTab.lookUpHydropathy(self.seq[0])]
+        ans = [lkupTab.lookUpHydropathy(self.seq[0])]
         for i in np.arange(1,self.len):
-            ans.append(ans[i-1]+self.lkupTab.lookUpHydropathy(self.seq[i]))
+            ans.append(ans[i-1]+lkupTab.lookUpHydropathy(self.seq[i]))
         ans /= (np.arange(0,self.len)+1)
         return ans
         
@@ -78,7 +76,7 @@ class Sequence:
         nblobs = self.len-bloblen+1
         ans = 0
         for i in np.arange(0,nblobs):
-            blob = Sequence(self.seq[i:(i+bloblen)],self.lkupTab)
+            blob = Sequence(self.seq[i:(i+bloblen)])
             ans += ((sigma - blob.sigma())**2)/nblobs
         return ans
     
@@ -89,6 +87,8 @@ class Sequence:
         #if this has been computed already, then return it
         if(self.dmax != -1):
             return self.dmax
+        elif(self.FCR() == 0):
+            self.dmax = 0
         #first computational trick
         elif(self.countNeut() == 0):
             setupSequence = ''
@@ -97,7 +97,7 @@ class Sequence:
             for i in np.arange(0,self.countNeg()):
                 setupSequence += '-'
             assert(self.len == len(setupSequence))
-            self.dmax = Sequence(setupSequence,self.lkupTab).delta() 
+            self.dmax = Sequence(setupSequence).delta() 
         #second computational trick
         elif(self.countNeut() >= 15):
             setupSequence = '00000'
@@ -109,14 +109,21 @@ class Sequence:
                 setupSequence += '-'
             setupSequence += '00000'
             assert(self.len == len(setupSequence))
-            self.dmax = Sequence(setupSequence,self.lkupTab).delta() 
+            self.dmax = Sequence(setupSequence).delta() 
         #none of the tricks work so monte carlo
         else:
             rand = rm.Random()
             global_dmax = -1
+            setupSequence = ''
+            for i in np.arange(0,self.countPos()):
+                setupSequence += '+'
+            for i in np.arange(0,self.countNeut()):
+                setupSequence += '0'
+            for i in np.arange(0,self.countNeg()):
+                setupSequence += '-'
             for i in np.arange(0,self.N_ITERS):
                 #initial sequence is randomized
-                oseq = Sequence(''.join(rand.sample(self.seq,self.len)),self.lkupTab)
+                oseq = Sequence(setupSequence)
                 local_dmax = oseq.delta()
                 for j in np.arange(0,self.N_STEPS):
                     swapPair = rand.sample(np.arange(0,self.len),2)
@@ -127,6 +134,7 @@ class Sequence:
                         local_dmax = nseq_dmax
                 if(local_dmax > global_dmax):
                     global_dmax = local_dmax
+                print(local_dmax)
             self.dmax = global_dmax
         return self.dmax
         
@@ -135,7 +143,7 @@ class Sequence:
         
     def swapRes(self,index1,index2):
         if(index1 == index2):
-            return Sequence(self.seq,self.lkupTab)
+            return Sequence(self.seq)
         elif(index2<index1):
             temp = index2
             index2 = index1
@@ -144,4 +152,4 @@ class Sequence:
             pass
         
         tempseq = self.seq[:index1] + self.seq[index2] + self.seq[(index1+1):(index2)]+ self.seq[index1] + self.seq[(index2+1):]
-        return Sequence(tempseq,self.lkupTab)
+        return Sequence(tempseq)
