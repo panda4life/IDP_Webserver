@@ -6,7 +6,6 @@ Created on Wed Mar 12 11:10:55 2014
 """
 
 import numpy as np
-import random as rm
 from residues import resTable
 
 lkupTab = resTable('residueData.csv')
@@ -183,3 +182,21 @@ class Sequence:
 
         tempseq = self.seq[:index1] + self.seq[index2] + self.seq[(index1+1):(index2)]+ self.seq[index1] + self.seq[(index2+1):]
         return Sequence(tempseq)
+
+    def toString(self):
+        s = "%i\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d" % (self.len,self.fminus(),self.fplus(),self.FCR(),self.NCPR(),self.sigma(),self.delta(),self.deltaMax(),self.kappa(),self.meanHydropathy())
+        return s
+
+    def toFileString(self):
+        s =  "N:\t%i\n" % (self.len)
+        s +=  "f-:\t%d\n" % (self.fminus())
+        s += "f+:\t%d\n" % (self.fplus())
+        s += "FCR:\t%d\n" % (self.FCR())
+        s += "NCPR:\t%d\n" % (self.NCPR())
+        s += "Sigma:\t%d\n" % (self.sigma())
+        s += "Delta:\t%d\n" % (self.delta())
+        s += "Max Delta:\t%d\n" % (self.deltaMax())
+        s += "Kappa:\t%d\n" % (self.kappa())
+        s += "<H>:\t%d\n" % (self.meanHydropathy())
+        s += "Phase Plot Region:" % (self.phasePlotRegion())
+        s += "Phase Plot Annotation:" % (self.phasePlotAnnotation())
