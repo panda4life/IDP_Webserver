@@ -6,38 +6,37 @@ Created on Wed Mar 12 11:10:55 2014
 """
 
 import numpy as np
+import random as rng
+import time as t
 from residues import resTable
 
 lkupTab = resTable('residueData.csv')
 
 class Sequence:
-    def __init__(self,seq):
+    def __init__(self,seq,dmax = -1):
         self.seq = seq.upper()
         self.len = len(seq)
-        self.dmax = -1 #initializing to prevent extra computational time
+        chargePattern = []
+        for i in np.arange(0,self.len):
+            if(lkupTab.lookUpCharge(self.seq[i])>0):
+                chargePattern = np.append(chargePattern,1)
+            elif(lkupTab.lookUpCharge(self.seq[i])<0):
+                chargePattern = np.append(chargePattern,-1)
+            else:
+                chargePattern = np.append(chargePattern,0)
+        self.chargePattern = chargePattern
+        self.dmax = dmax #initializing to prevent extra computational time
         self.N_ITERS = 5
         self.N_STEPS = 5000
 
     def countPos(self):
-        ans = 0
-        for i in np.arange(0,self.len):
-            if(lkupTab.lookUpCharge(self.seq[i])>0):
-                ans += 1
-        return ans
+        return len(np.where(self.chargePattern>0)[0])
 
     def countNeg(self):
-        ans = 0
-        for i in np.arange(0,self.len):
-            if(lkupTab.lookUpCharge(self.seq[i])<0):
-                ans += 1
-        return ans
+        return len(np.where(self.chargePattern<0)[0])
 
     def countNeut(self):
-        ans = 0
-        for i in np.arange(0,self.len):
-            if(lkupTab.lookUpCharge(self.seq[i])==0):
-                ans += 1
-        return ans
+        return len(np.where(self.chargePattern==0)[0])
 
     def Fplus(self):
         return self.countPos()/(self.len+0.0)
@@ -46,11 +45,46 @@ class Sequence:
         return self.countNeg()/(self.len+0.0)
 
     def FCR(self):
-        return self.Fplus() + self.Fminus()
+        return (self.countPos() + self.countNeg())/(self.len+0.0)
 
     def NCPR(self):
-        return self.Fplus() - self.Fminus()
-
+        return (self.countPos() - self.countNeg())/(self.len+0.0)
+    
+    def phasePlotRegion(self):
+        fcr = self.FCR()
+        ncpr = self.NCPR()
+        if(fcr < .25 and ncpr<.25):
+            return 1
+        elif(fcr >= .25 and fcr <= .35 and ncpr <= .35):
+            return 2
+        elif(fcr > .35 and ncpr <= .35):
+            return 3
+        elif(fcr > .35 and ncpr > .35):
+            if(self.Fplus>.35):
+                return 4
+            elif(self.Fminus>.35):
+                return 5
+            else: #This case is impossible but here for completeness
+                return None
+        else: #This case is impossible but here for completeness
+            return None
+                
+        
+    def phasePlotAnnotation(self):
+        region = self.phasePlotRegion()
+        if(region == 1):
+            return 'Globule/Tadpole'
+        elif(region == 2):
+            return 'Boundary Region'
+        elif(region == 3):
+            return 'Coils,Hairpins and Chimeras'
+        elif(region == 4):
+            return 'Negatively Charged Swollen Coils'
+        elif(region == 5):
+            return 'Positively Charged Swollen Coils'
+        else :
+            return 'ERROR, NOT A REAL REGION'
+        
     def meanHydropathy(self):
         ans = 0
         for i in np.arange(0,self.len):
@@ -65,18 +99,26 @@ class Sequence:
         return ans
 
     def sigma(self):
-        if(self.FCR() > 0):
-            return self.NCPR()**2/self.FCR()
-        else:
+        if(self.countNeut() == self.len):
             return 0
+        else:
+            return self.NCPR()**2/self.FCR()
 
     def deltaForm(self,bloblen):
         sigma = self.sigma()
         nblobs = self.len-bloblen+1
         ans = 0
         for i in np.arange(0,nblobs):
-            blob = Sequence(self.seq[i:(i+bloblen)])
-            ans += ((sigma - blob.sigma())**2)/nblobs
+            blob = self.chargePattern[i:(i+bloblen)]
+            bpos = len(np.where(blob>0)[0])
+            bneg = len(np.where(blob<0)[0])
+            bncpr = (bpos-bneg)/(bloblen+0.0)
+            bfcr = (bpos+bneg)/(bloblen+0.0)
+            if(bfcr == 0):
+                bsig = 0
+            else:
+                bsig = bncpr**2/bfcr
+            ans += (sigma - bsig)**2/nblobs
         return ans
 
     def delta(self):
@@ -179,24 +221,33 @@ class Sequence:
             index1 = temp
         else:
             pass
-
         tempseq = self.seq[:index1] + self.seq[index2] + self.seq[(index1+1):(index2)]+ self.seq[index1] + self.seq[(index2+1):]
         return Sequence(tempseq)
 
+    def swapRandChargeRes(self):
+        rand = rng.Random()
+        rand.seed(t.time())
+        pickableRes = np.arange(0,self.len)
+        swapPair = rand.sample(pickableRes,2)
+        while(self.chargePattern[swapPair[0]] == self.chargePattern[swapPair[1]]):
+            swapPair = rand.sample(pickableRes,2)
+        return self.swapRes(swapPair[0],swapPair[1])
+
     def toString(self):
-        s = "%i\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d" % (self.len,self.fminus(),self.fplus(),self.FCR(),self.NCPR(),self.sigma(),self.delta(),self.deltaMax(),self.kappa(),self.meanHydropathy())
+        s = "%i\t%3.5f\t%3.5f\t%3.5f\t%3.5f\t%3.5f\t%3.5f\t%3.5f\t%3.5f\t%3.5f" % (self.len,self.Fminus(),self.Fplus(),self.FCR(),self.NCPR(),self.sigma(),self.delta(),self.deltaMax(),self.kappa(),self.meanHydropathy())
         return s
 
     def toFileString(self):
         s =  "N:\t%i\n" % (self.len)
-        s +=  "f-:\t%d\n" % (self.fminus())
-        s += "f+:\t%d\n" % (self.fplus())
-        s += "FCR:\t%d\n" % (self.FCR())
-        s += "NCPR:\t%d\n" % (self.NCPR())
-        s += "Sigma:\t%d\n" % (self.sigma())
-        s += "Delta:\t%d\n" % (self.delta())
-        s += "Max Delta:\t%d\n" % (self.deltaMax())
-        s += "Kappa:\t%d\n" % (self.kappa())
-        s += "<H>:\t%d\n" % (self.meanHydropathy())
-        s += "Phase Plot Region:" % (self.phasePlotRegion())
-        s += "Phase Plot Annotation:" % (self.phasePlotAnnotation())
+        s += "f-:\t%3.5f\n" % (self.Fminus())
+        s += "f+:\t%3.5f\n" % (self.Fplus())
+        s += "FCR:\t%3.5f\n" % (self.FCR())
+        s += "NCPR:\t%3.5f\n" % (self.NCPR())
+        s += "Sigma:\t%3.5f\n" % (self.sigma())
+        s += "Delta:\t%3.5f\n" % (self.delta())
+        s += "Max Delta:\t%3.5f\n" % (self.deltaMax())
+        s += "Kappa:\t%3.5f\n" % (self.kappa())
+        s += "<H>:\t%3.5f\n" % (self.meanHydropathy())
+        s += "Phase Plot Region: %i\n" % (self.phasePlotRegion())
+        s += "Phase Plot Annotation: %s\n" % (self.phasePlotAnnotation())
+        return s
