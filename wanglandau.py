@@ -60,8 +60,11 @@ def WangLandau(seq,nbins=10,binmin=0.0,binmax=1.0,nflatchk=10000,convergence=np.
                 nseq = None
                 idx_new = 0
             nstep = nstep + 1
+            if(np.mod(nstep,100)):
+                print(nstep)
             if(nstep == nflatchk):
                 print(H)
+                nstep = 0
                 if len(np.where(H/np.mean(H) >= .7)) == nbins:
                     f = f**.5
                     H = [0]*nbins
