@@ -8,23 +8,25 @@ Created on Wed Mar 12 11:10:55 2014
 import numpy as np
 import random as rng
 import time as t
+import copy as cp
 from residues import resTable
 
 lkupTab = resTable('residueData.csv')
 
 class Sequence:
-    def __init__(self,seq,dmax = -1):
+    def __init__(self,seq,dmax = -1,chargePattern=[]):
         self.seq = seq.upper()
         self.len = len(seq)
-        chargePattern = []
-        for i in np.arange(0,self.len):
-            if(lkupTab.lookUpCharge(self.seq[i])>0):
-                chargePattern = np.append(chargePattern,1)
-            elif(lkupTab.lookUpCharge(self.seq[i])<0):
-                chargePattern = np.append(chargePattern,-1)
-            else:
-                chargePattern = np.append(chargePattern,0)
         self.chargePattern = chargePattern
+        if(chargePattern == []):
+            for i in np.arange(0,self.len):
+                if(lkupTab.lookUpCharge(self.seq[i])>0):
+                    chargePattern = np.append(chargePattern,1)
+                elif(lkupTab.lookUpCharge(self.seq[i])<0):
+                    chargePattern = np.append(chargePattern,-1)
+                else:
+                    chargePattern = np.append(chargePattern,0)
+            self.chargePattern = chargePattern
         self.dmax = dmax #initializing to prevent extra computational time
         self.N_ITERS = 5
         self.N_STEPS = 5000
@@ -49,7 +51,7 @@ class Sequence:
 
     def NCPR(self):
         return (self.countPos() - self.countNeg())/(self.len+0.0)
-    
+
     def phasePlotRegion(self):
         fcr = self.FCR()
         ncpr = self.NCPR()
@@ -68,8 +70,8 @@ class Sequence:
                 return None
         else: #This case is impossible but here for completeness
             return None
-                
-        
+
+
     def phasePlotAnnotation(self):
         region = self.phasePlotRegion()
         if(region == 1):
@@ -84,7 +86,7 @@ class Sequence:
             return 'Positively Charged Swollen Coils'
         else :
             return 'ERROR, NOT A REAL REGION'
-        
+
     def meanHydropathy(self):
         ans = 0
         for i in np.arange(0,self.len):
@@ -222,16 +224,56 @@ class Sequence:
         else:
             pass
         tempseq = self.seq[:index1] + self.seq[index2] + self.seq[(index1+1):(index2)]+ self.seq[index1] + self.seq[(index2+1):]
-        return Sequence(tempseq)
+        charge1 = self.chargePattern[index1]
+        charge2 = self.chargePattern[index2]
+        tempChargeSeq = cp.deepcopy(self.chargePattern)
+        tempChargeSeq[index1] = charge2
+        tempChargeSeq[index2] = charge1
+        for i in range(0,len(tempseq)):
+            assert(lkupTab.lookUpCharge(tempseq[i]) == tempChargeSeq[i])
+        return Sequence(tempseq,self.dmax,tempChargeSeq)
 
     def swapRandChargeRes(self):
         rand = rng.Random()
         rand.seed(t.time())
-        pickableRes = np.arange(0,self.len)
-        swapPair = rand.sample(pickableRes,2)
-        while(self.chargePattern[swapPair[0]] == self.chargePattern[swapPair[1]]):
-            swapPair = rand.sample(pickableRes,2)
-        return self.swapRes(swapPair[0],swapPair[1])
+        posInd = np.where(self.chargePattern>0)[0]
+        negInd = np.where(self.chargePattern<0)[0]
+        neutInd = np.where(self.chargePattern==0)[0]
+        if(len(neutInd) == 0):
+            if(len(posInd) == 0 or len(negInd) == 0):
+                print('swap will not change kappa, only one charge type in sequence')
+                return self
+            else:
+                chargeType = [1,2]
+        elif(len(negInd) == 0):
+            if(len(posInd) == 0 or len(neutInd) == 0):
+                print('swap will not change kappa, only one charge type in sequence')
+                return self
+            else:
+                chargeType = [1,3]
+        elif(len(posInd) == 0):
+            if(len(negInd) == 0 or len(neutInd) == 0):
+                print('swap will not change kappa, only one charge type in sequence')
+                return self
+            else:
+                chargeType = [2,3]
+        else:
+            chargeType = rand.sample([1,2,3],2)
+
+        if(chargeType[0] == 1):
+            swapPair1 = rand.sample(posInd,1)
+        elif(chargeType[0] == 2):
+            swapPair1 = rand.sample(negInd,1)
+        elif(chargeType[0] == 3):
+            swapPair1 = rand.sample(neutInd,1)
+
+        if(chargeType[1] == 1):
+            swapPair2 = rand.sample(posInd,1)
+        elif(chargeType[1] == 2):
+            swapPair2 = rand.sample(negInd,1)
+        elif(chargeType[1] == 3):
+            swapPair2 = rand.sample(neutInd,1)
+        return self.swapRes(swapPair1[0],swapPair2[0])
 
     def toString(self):
         s = "%i\t%3.5f\t%3.5f\t%3.5f\t%3.5f\t%3.5f\t%3.5f\t%3.5f\t%3.5f\t%3.5f" % (self.len,self.Fminus(),self.Fplus(),self.FCR(),self.NCPR(),self.sigma(),self.delta(),self.deltaMax(),self.kappa(),self.meanHydropathy())
