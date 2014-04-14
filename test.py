@@ -73,9 +73,13 @@ print(endTime-startTime)
 
 import wanglandau as wl
 import numpy as np
-#seq = Sequence('EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKK')
-seq = Sequence('QHGQLWFPEGFKVSEASKKKRREPLGEDSAGLKPLKNASDGALMDDNQNEWGDEDLETKKFRFEEPVVRGDLDDQTDHRQWTQQHLDAADLSMSAMAPTPPQGEVDADCMDVNVRGPDGF')
+seq = Sequence('EEEEEEEEEEEEEEEEEEEEEEEEEKKKKKKKKKKKKKKKKKKKKKKKKK')
+#seq = Sequence('QHGQLWFPEGFKVSEASKKKRREPLGEDSAGLKPLKNASDGALMDDNQNEWGDEDLETKKFRFEEPVVRGDLDDQTDHRQWTQQHLDAADLSMSAMAPTPPQGEVDADCMDVNVRGPDGF')
+outdir = 'test/'
+f = open(outdir + "seqparam.txt",'w')
+f.write(seq.toFileString())
 print(seq.toFileString())
+f.close()
 #print(seq.seq)
 #print(seq.chargePattern)
 #testseq = seq.swapRandChargeRes().swapRandChargeRes().swapRandChargeRes()
@@ -85,8 +89,8 @@ print(seq.toFileString())
 #print(Sequence(testseq.seq).kappa())
 #print(seq.chargePattern-testseq.chargePattern)
 
-g = wl.WangLandau(seq,nbins=10,binmin=.047,binmax=.452,nflatchk=10000,convergence=np.exp(.000001),genPermutants=False)
-#g = wl.WangLandau(seq,nbins=10,binmin=.000,binmax=1,nflatchk=10000,convergence=np.exp(.000001),genPermutants=False)
+#g = wl.WangLandau(seq,outdir,nbins=10,binmin=.02,binmax=.452)
+g = wl.WangLandau(seq,nbins=10,binmin=.000,binmax=1,nflatchk=10000,convergence=np.exp(.000001),genPermutants=False)
 
 #assert(seq.meanHydropathy() == seq.cumMeanHydropathy()[-1])
 

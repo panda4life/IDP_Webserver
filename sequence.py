@@ -280,7 +280,8 @@ class Sequence:
         return s
 
     def toFileString(self):
-        s =  "N:\t%i\n" % (self.len)
+        s = "Sequence: %s\n" % (self.seq)
+        s += "N:\t%i\n" % (self.len)
         s += "f-:\t%3.5f\n" % (self.Fminus())
         s += "f+:\t%3.5f\n" % (self.Fplus())
         s += "FCR:\t%3.5f\n" % (self.FCR())
